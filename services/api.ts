@@ -1,6 +1,8 @@
 import { Parser } from 'htmlparser2';
 import { DomHandler } from 'domhandler';
 import { JSDOM } from 'jsdom';
+import metadata from './metadata.json';
+import detaildata from './detaildata.json';
 
 const API_BASE = 'http://192.168.0.103:3001/api';
 
@@ -123,12 +125,13 @@ export async function fetchArticles(category_id: number, page = 1, limit = 20) {
     
     // Nếu không có cache hoặc cache hết hạn, gọi API
     console.log(`Gọi API cho category ${category_id}, page ${page}`);
-    const url = `${API_BASE}/metadata?category_id=${category_id}&page=${page}&limit=${limit}`;
-    const res = await fetch(url);
-    const json = await res.json();
-    if (json.error) throw new Error(json.error);
-    // Server trả về { articles, total }
-    const articles = json.articles || [];
+    const allArticles = metadata.articles.filter(
+      (article) => article.category_id === category_id
+    );
+  
+    const start = (page - 1) * limit;
+    const articles = allArticles.slice(start, start + limit);
+  
     // Lưu vào cache
     saveToCache(cacheKey, articles);
     // Preload trang tiếp theo
@@ -183,118 +186,19 @@ export function getPreloadStatus(): { cacheSize: number; queueSize: number } {
 // Crawl chi tiết bài viết ngay trên client
 export async function fetchArticleDetailClient(url: string) {
   try {
-    const response = await fetch(url);
-    const html = await response.text();
-    const handler = new DomHandler((error, dom) => {
-      if (error) throw error;
-    });
-    const parser = new Parser(handler, { decodeEntities: true });
-    parser.write(html);
-    parser.end();
-    const dom = handler.dom;
-    const items = [];
+    const { success, data } = detaildata;
 
-    function findContentNode(nodes) {
-      for (const node of nodes) {
-        if (
-          node.attribs &&
-          (
-            node.attribs.class?.includes('fck_detail') ||
-            node.attribs.class?.includes('detail-content') ||
-            node.attribs.class?.includes('article__body') ||
-            node.attribs.class?.includes('singular-content') ||
-            node.attribs.class?.includes('maincontent') ||
-            node.attribs.class?.includes('e-magazine__body')
-          )
-        ) {
-          return node;
-        }
-        if (node.children) {
-          const found = findContentNode(node.children);
-          if (found) return found;
-        }
-      }
-      return null;
+    if (!success || !data?.items || data.items.length === 0) {
+      return {
+        items: [{ type: 'text', text: 'Không tìm thấy nội dung bài viết.' }],
+      };
     }
 
-    function extractContent(node) {
-      for (const child of node.children || []) {
-        if (child.type === 'tag') {
-          const tag = child.name.toLowerCase();
-          if (['p', 'h1', 'h2', 'h3'].includes(tag)) {
-            const text = getText(child).trim();
-            const htmlContent = getHtml(child);
-            if (text) items.push({ type: 'text', text, html: htmlContent });
-          } else if (tag === 'figure') {
-            const img = findTag(child, 'img');
-            const caption = getText(findTag(child, 'figcaption')).trim() || '';
-            const src = img?.attribs?.['data-src'] || img?.attribs?.['data-original'] || img?.attribs?.src;
-            if (src) items.push({ type: 'image', url: src, caption });
-          } else if (tag === 'div' && child.attribs?.class?.includes('VCSortableInPreviewMode')) {
-            const figures = findAllTags(child, 'img');
-            const caption = getText(findTag(child, 'figcaption')).trim();
-            for (const img of figures) {
-              const src = img.attribs?.['data-original'] || img.attribs?.src;
-              if (src) items.push({ type: 'image', url: src, caption });
-            }
-          }
-        }
-      }
-    }
-
-    function getText(node) {
-      if (!node) return '';
-      if (node.type === 'text') return node.data;
-      if (!node.children) return '';
-      return node.children.map(getText).join('');
-    }
-
-    function getHtml(node) {
-      if (!node) return '';
-      if (node.type === 'text') return node.data;
-      if (node.type === 'tag') {
-        const attrs = node.attribs 
-          ? Object.entries(node.attribs)
-              .map(([key, value]) => ` ${key}="${value}"`)
-              .join('')
-          : '';
-        const children = node.children ? node.children.map(getHtml).join('') : '';
-        return `<${node.name}${attrs}>${children}</${node.name}>`;
-      }
-      return '';
-    }
-
-    function findTag(node, tag) {
-      if (!node) return null;
-      if (node.type === 'tag' && node.name === tag) return node;
-      for (const child of node.children || []) {
-        const found = findTag(child, tag);
-        if (found) return found;
-      }
-      return null;
-    }
-
-    function findAllTags(node, tag) {
-      const results = [];
-      function search(n) {
-        if (n.type === 'tag' && n.name === tag) results.push(n);
-        for (const c of n.children || []) search(c);
-      }
-      search(node);
-      return results;
-    }
-
-    const contentNode = findContentNode(dom);
-    if (contentNode) {
-      extractContent(contentNode);
-    }
-
-    if (items.length === 0) {
-      return { items: [{ type: 'text', text: 'Không tìm thấy nội dung bài viết.' }] };
-    }
-
-    return { items };
+    return { items: data.items };
   } catch (e) {
-    return { items: [{ type: 'text', text: `Không thể tải bài viết: ${e.message}` }] };
+    return {
+      items: [{ type: 'text', text: `Không thể tải bài viết: ${e.message}` }],
+    };
   }
+
   }

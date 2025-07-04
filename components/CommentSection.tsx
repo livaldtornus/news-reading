@@ -107,44 +107,38 @@ export default function CommentSection({ articleUrl, user, accessToken, onLoginP
         ))
       )}
       {/* Comment input */}
-      {user && accessToken ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-          <TextInput
-            ref={commentInputRef}
-            style={{ 
-              flex: 1, 
-              borderWidth: 1, 
-              borderColor: '#ddd', 
-              borderRadius: 20, 
-              paddingHorizontal: 16, 
-              paddingVertical: 8, 
-              fontSize: 15, 
-              backgroundColor: '#fafbfc' 
-            }}
-            placeholder="Viết bình luận..."
-            value={commentText}
-            onChangeText={setCommentText}
-            editable={!sending}
-            returnKeyType="send"
-            onSubmitEditing={handleSendComment}
-            multiline={false}
-          />
-          <TouchableOpacity 
-            onPress={handleSendComment} 
-            disabled={sending || !commentText.trim()} 
-            style={{ 
-              marginLeft: 8, 
-              opacity: sending || !commentText.trim() ? 0.5 : 1 
-            }}
-          >
-            <Ionicons name="send" size={24} color="#2196f3" />
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <TouchableOpacity onPress={onLoginPress} style={{ marginTop: 8 }}>
-          <Text style={{ color: '#2196f3' }}>Đăng nhập để bình luận</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+        <TextInput
+          ref={commentInputRef}
+          style={{ 
+            flex: 1, 
+            borderWidth: 1, 
+            borderColor: '#ddd', 
+            borderRadius: 20, 
+            paddingHorizontal: 16, 
+            paddingVertical: 8, 
+            fontSize: 15, 
+            backgroundColor: '#fafbfc' 
+          }}
+          placeholder="Viết bình luận..."
+          value={commentText}
+          onChangeText={setCommentText}
+          editable={!sending}
+          returnKeyType="send"
+          onSubmitEditing={handleSendComment}
+          multiline={false}
+        />
+        <TouchableOpacity 
+          onPress={handleSendComment} 
+          disabled={sending || !commentText.trim()} 
+          style={{ 
+            marginLeft: 8, 
+            opacity: sending || !commentText.trim() ? 0.5 : 1 
+          }}
+        >
+          <Ionicons name="send" size={24} color="#2196f3" />
         </TouchableOpacity>
-      )}
+      </View>
     </View>
   );
 } 
